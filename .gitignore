@@ -1,3 +1,7 @@
+# manually added
+.ds_store
+datasets/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

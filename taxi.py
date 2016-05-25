@@ -11,48 +11,7 @@ import pyspark
 from operator import add
 import numpy as np
 import matplotlib.path as mplPath
-
-
-# In[54]:
-
-def create_geojson(filename,data):
-    import json
-    coordinatesList = {}
-    with open ('block-groups-polygons-simple.geojson') as dataFile:
-        blockData = json.load(dataFile)
-    count = 0
-    for i in data:
-        for block in blockData['features']:
-            if i == block['properties']['OBJECTID']:
-                coordinatesList[count] = [block['geometry'],block['properties']]
-                count+=1
-
-    template =         '''         { "type" : "Feature",
-            "id" : %s,
-            "properties" : %s,
-            "geometry" : %s
-            },
-        '''
-
-    # the head of the geojson file
-    output =         '''     { "type" : "FeatureCollection",
-        "features" : [
-        '''
-
-    for k,v in coordinatesList.iteritems():
-        output += template % (k,json.dumps(v[1]),json.dumps(v[0]))
-
-    # the tail of the geojson file
-    output +=         '''         ]
-    }
-        '''
-
-    # opens an geoJSON file to write the output to
-    outFileHandle = open(filename+".geojson", "w")
-    outFileHandle.write(output)
-    outFileHandle.close()
-
-
+from heapq import nlargest
 # In[55]:
 
 def indexZones(shapeFilename):
@@ -93,22 +52,21 @@ def mapToZone(parts):
         if line.startswith('vendor_id'): continue 
         fields = line.strip('').split(',')
         if fields ==['']: continue
-        if all((fields[5],fields[6],fields[9],fields[10])) and float(fields[4])<=1:
+        if  float(fields[4])<=1 and float(fields[4])>0 and all((fields[5],fields[6],fields[9],fields[10])):
             pickup_location  = geom.Point(proj(float(fields[5]), float(fields[6])))
 	    dropoff_location = geom.Point(proj(float(fields[9]), float(fields[10])))
             pickup_block = findBlock(pickup_location, index, zones)
             dropoff_block = findBlock(dropoff_location, index, zones)
             pickup_borough = findB(pickup_location, index2, zones2)
 	    dropoff_borough = findB(dropoff_location, index2, zones2)
-            if pickup_block>=0 and pickup_borough>0 and dropoff_block>0 and dropoff_borough>0:#np.array(pickup_block.exterior)
+            if pickup_block>=0 and pickup_borough>0 and dropoff_block>0 and dropoff_borough>0:
                 yield (pickup_block,pickup_borough,dropoff_block,dropoff_borough)
 
-def mapper2(k2v2):
-    from heapq import nlargest
-    k, values = k2v2
-    top10 = nlargest(10, values, lambda x:x[1])
-    return (k,top10)
 
+def mapper2(k2v2):
+    k, values = k2v2
+    top10 = nlargest(10, values,key=lambda a: a[1])
+    return (k,top10)
 # In[58]:
 
 if __name__=='__main__':
@@ -117,24 +75,12 @@ if __name__=='__main__':
         sys.exit(-1)
 
     sc = pyspark.SparkContext()
-    trips = sc.textFile(','.join(sys.argv[1:-1]))
-    #trips = sc.textFile('/home/satya/BDM_dataset/yellow_tripdata_2011-05.csv')
+    trips = sc.textFile((','.join(sys.argv[1:-1])),512)
 
-    output = trips.mapPartitions(mapToZone)
-    pickup = output.map(lambda x: ((x[0],x[1]),1)).reduceByKey(lambda x,y: x+y).map(lambda x:(x[0][1], (x[0][0],x[1]))).groupByKey().map(mapper2)
-    dropoff = output.map(lambda x: ((x[2],x[3]),1)).reduceByKey(lambda x,y: x+y).map(lambda x:(x[0][1], (x[0][0],x[1]))).groupByKey().map(mapper2)
-    #print final.collect()
-    final  = pickup.union(dropoff)
-    final.saveAsTextFile(sys.argv[-1])
+    
+    output = trips.mapPartitions(mapToZone).map(lambda x: ((x[0],x[1]),1)).union(trips.mapPartitions(mapToZone).map(lambda x: ((x[2],x[3]),1))).reduceByKey(lambda x,y: x+y, 16).map(lambda x: (x[0][1], (x[0][0],x[1]))).groupByKey().map(mapper2)
 
-
-# In[59]:
-
-    create_geojson("pickup_map",pickup_all.map(lambda x: x[1][0]).collect())
-    create_geojson("dropoff_map",pickup_all.map(lambda x: x[1][0]).collect())
-
-
-# In[60]:
-
-
+    
+    #combine = pickup.union(dropoff)
+    output.saveAsTextFile(sys.argv[-1])
 

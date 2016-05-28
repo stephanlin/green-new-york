@@ -16,7 +16,3 @@
 * NYC Boroughs (geojson)
 * NYC Blocks (geojson)
 
-## Tasks
-
-- [x] Find the street block for each of all current citi bike stations. (citibikeStationInBlock.ipynb)
-- [x] 

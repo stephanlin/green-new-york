@@ -11,10 +11,10 @@
 
 ## Datasets
 
-* Taxi Trip Data (2009-2014) (csv)
-* Citi Bike Stations (json)
-* NYC Boroughs (geojson)
-* NYC Blocks (geojson)
+* [Taxi Trip Data (2009-2014) (csv)](http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml)
+* [Citi Bike Stations (json)](https://feeds.citibikenyc.com/stations/stations.json)
+* [NYC Boroughs (geojson)](/code/boroughs.geojson)
+* [NYC Blocks (geojson)](/code/block-groups-polygons.geojson)
 
 ## Report
 * [Final Report] (/documents/report.pdf)
